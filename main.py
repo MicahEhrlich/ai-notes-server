@@ -1,0 +1,116 @@
+from fastapi import FastAPI, Depends, HTTPException, status
+from sqlmodel import SQLModel, Session, select
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from passlib.context import CryptContext
+from datetime import datetime, timedelta
+from typing import Optional, List
+from jose import JWTError, jwt
+import os
+
+from db import engine, get_session
+from models import User, Note, NoteCreate
+from dotenv import load_dotenv
+load_dotenv()
+
+# Load environment variables
+SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+app = FastAPI()
+
+
+@app.on_event("startup")
+def on_startup():
+    SQLModel.metadata.create_all(engine)
+
+
+# --- Utility Functions ---
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: int = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    user = session.get(User, user_id)
+    if user is None:
+        raise credentials_exception
+    return user
+
+
+# --- Authentication Endpoints ---
+
+@app.post("/register")
+def register_user(form: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+    user_exists = session.exec(select(User).where(User.username == form.username)).first()
+    if user_exists:
+        raise HTTPException(status_code=400, detail="Username already registered")
+
+    user = User(username=form.username, hashed_password=get_password_hash(form.password))
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return {"message": "User registered successfully"}
+
+
+@app.post("/token")
+def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+    user = session.exec(select(User).where(User.username == form_data.username)).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+
+    access_token = create_access_token(data={"sub": str(user.id)},
+                                       expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+# --- Notes Endpoints ---
+@app.post("/notes", response_model=Note)
+def create_note(note: NoteCreate, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    new_note = Note(content=note.content, tags=note.tags, owner_id=user.id)
+    session.add(new_note)
+    session.commit()
+    session.refresh(new_note)
+    return new_note
+
+
+@app.get("/notes", response_model=List[Note])
+def get_notes(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return session.exec(select(Note).where(Note.owner_id == user.id)).all()
+
+
+@app.delete("/notes/{note_id}")
+def delete_note(note_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    note = session.get(Note, note_id)
+    if not note or note.owner_id != user.id:
+        raise HTTPException(status_code=404, detail="Note not found or unauthorized")
+    session.delete(note)
+    session.commit()
+    return {"message": "Note deleted"}
