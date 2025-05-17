@@ -1,8 +1,9 @@
-fastapi
+fastapi~=0.115.12
 uvicorn
-sqlmodel
+sqlmodel~=0.0.24
 psycopg2-binary
 python-jose
-passlib[bcrypt]
-python-dotenv
+passlib[bcrypt]~=1.7.4
+python-dotenv~=1.0.1
 python-multipart
+jose

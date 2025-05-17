@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/ai-noted-server.iml" filepath="$PROJECT_DIR$/.idea/ai-noted-server.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/ai-notes-server.iml" filepath="$PROJECT_DIR$/.idea/ai-notes-server.iml" />
     </modules>
   </component>
 </project>
