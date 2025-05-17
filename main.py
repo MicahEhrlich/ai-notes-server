@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List
 from jose import JWTError, jwt
 import os
+from fastapi.middleware.cors import CORSMiddleware
 
 from db import engine, get_session
 from models import User, Note, NoteCreate
@@ -22,6 +23,18 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 app = FastAPI()
 
+origins = [
+    "http://localhost:5173",
+    "https://ai-notes-editor.vercel.app"  # replace with your actual Vercel frontend domain
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,              # or use ['*'] for all origins (not recommended for prod)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 def on_startup():
