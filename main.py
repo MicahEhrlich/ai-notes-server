@@ -11,6 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from db import engine, get_session
 from models import User, Note, NoteCreate
 from dotenv import load_dotenv
+
+from schemas import UserCreate, UserLogin
+
 load_dotenv()
 
 # Load environment variables
@@ -81,12 +84,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Dep
 # --- Authentication Endpoints ---
 
 @app.post("/register")
-def register_user(form: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
-    user_exists = session.exec(select(User).where(User.username == form.username)).first()
+def register_user(user: UserCreate, session: Session = Depends(get_session)):
+    user_exists = session.exec(select(User).where(User.username == user.username)).first()
     if user_exists:
         raise HTTPException(status_code=400, detail="Username already registered")
 
-    user = User(username=form.username, hashed_password=get_password_hash(form.password))
+    user = User(username=user.username, hashed_password=get_password_hash(user.password))
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -94,12 +97,12 @@ def register_user(form: OAuth2PasswordRequestForm = Depends(), session: Session 
 
 
 @app.post("/token")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
-    user = session.exec(select(User).where(User.username == form_data.username)).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+def login(user: UserLogin, session: Session = Depends(get_session)):
+    user_row = session.exec(select(User).where(User.username == user.username)).first()
+    if not user_row or not verify_password(user.password, user_row.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
 
-    access_token = create_access_token(data={"sub": str(user.id)},
+    access_token = create_access_token(data={"sub": str(user_row.id)},
                                        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     return {"access_token": access_token, "token_type": "bearer"}
 
