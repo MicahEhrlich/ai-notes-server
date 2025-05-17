@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlmodel import SQLModel, Session, select
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional, List
@@ -93,7 +94,10 @@ def register_user(user: UserCreate, session: Session = Depends(get_session)):
     session.add(user)
     session.commit()
     session.refresh(user)
-    return {"message": "User registered successfully"}
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content={"message": "User registered successfully"}
+    )
 
 
 @app.post("/token")
