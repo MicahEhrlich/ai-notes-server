@@ -109,7 +109,7 @@ def login(user: UserLogin, session: Session = Depends(get_session)):
 
     access_token = create_access_token(data={"sub": str(user_row.id)},
                                        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    user = get_current_user(access_token)
+    user = Depends(get_current_user)
     return {"access_token": access_token, "token_type": "bearer", "user_id": user.id, "username": user.username}
 
 
