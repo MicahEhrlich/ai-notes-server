@@ -1,7 +1,9 @@
+import json
+
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlmodel import SQLModel, Session, select
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional, List
@@ -101,7 +103,7 @@ def register_user(user: UserCreate, session: Session = Depends(get_session)):
     )
 
 
-@app.post("/token")
+@app.post("/login")
 def login(user: UserLogin, session: Session = Depends(get_session)):
     user_row = session.exec(select(User).where(User.username == user.username)).first()
     if not user_row or not verify_password(user.password, user_row.hashed_password):
@@ -112,10 +114,21 @@ def login(user: UserLogin, session: Session = Depends(get_session)):
     return {"access_token": access_token, "token_type": "bearer", "user_id": user_row.id, "username": user_row.username}
 
 
+@app.post("/token")
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(),  session: Session = Depends(get_session)):
+    user_row = session.exec(select(User).where(User.username == form_data.username)).first()
+    if not user_row or not verify_password(form_data.password, user_row.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+
+    access_token = create_access_token(data={"sub": str(user_row.id)},
+                                       expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    return {"access_token": access_token, "token_type": "bearer", "user_id": user_row.id, "username": user_row.username}
+
+
 # --- Notes Endpoints ---
 @app.post("/notes", response_model=Note)
 def create_note(note: NoteCreate, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    new_note = Note(content=note.content, tags=note.tags, owner_id=user.id)
+    new_note = Note(content=note.content, tags=json.dumps(note.tags), owner_id=user.id)
     session.add(new_note)
     session.commit()
     session.refresh(new_note)
@@ -124,7 +137,10 @@ def create_note(note: NoteCreate, user: User = Depends(get_current_user), sessio
 
 @app.get("/notes", response_model=List[Note])
 def get_notes(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    return session.exec(select(Note).where(Note.owner_id == user.id)).all()
+    notes = session.exec(select(Note).where(Note.owner_id == user.id)).all()
+    for note in notes:
+        note.tags = json.loads(note.tags) if note.tags else []
+    return notes
 
 
 @app.delete("/notes/{note_id}")
