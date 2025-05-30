@@ -150,4 +150,30 @@ def delete_note(note_id: int, user: User = Depends(get_current_user), session: S
         raise HTTPException(status_code=404, detail="Note not found or unauthorized")
     session.delete(note)
     session.commit()
-    return {"message": "Note deleted"}
+    return JSONResponse(
+        status_code=status.HTTP_204_NO_CONTENT,
+        content={"message": "Note deleted successfully"}
+    )
+
+
+@app.put("/notes/{note_id}", response_model=Note)
+def update_note(
+    note_id: int,
+    note: NoteCreate = Depends(),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    db_note = session.exec(
+        select(Note).where(Note.id == note_id, Note.owner_id == user.id)
+    ).first()
+
+    if not db_note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    db_note.content = note.content
+    db_note.tags = json.dumps(note.tags)
+    session.add(db_note)
+    session.commit()
+    session.refresh(db_note)
+
+    return db_note
