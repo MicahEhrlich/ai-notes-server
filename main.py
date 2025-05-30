@@ -159,7 +159,7 @@ def delete_note(note_id: int, user: User = Depends(get_current_user), session: S
 @app.put("/notes/{note_id}", response_model=Note)
 def update_note(
     note_id: int,
-    note: NoteCreate = Depends(),
+    note: NoteCreate,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
