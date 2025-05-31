@@ -132,7 +132,10 @@ def create_note(note: NoteCreate, user: User = Depends(get_current_user), sessio
     session.add(new_note)
     session.commit()
     session.refresh(new_note)
-    return new_note
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content=new_note
+    )
 
 
 @app.get("/notes", response_model=List[Note])
