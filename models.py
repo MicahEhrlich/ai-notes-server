@@ -14,11 +14,11 @@ class Note(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     content: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    tags: Optional[str] = Field(default="[]")
+    tags: Optional[str] = Field(default="[]")  # stored as JSON string
     owner_id: int = Field(foreign_key="user.id")
     owner: Optional[User] = Relationship(back_populates="notes")
 
 
 class NoteCreate(SQLModel):
     content: str
-    tags: Optional[str] = Field(default="[]")
+    tags: Optional[List[str]] = []
