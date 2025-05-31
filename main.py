@@ -159,6 +159,28 @@ def delete_note(note_id: int, user: User = Depends(get_current_user), session: S
     )
 
 
+@app.delete("/notes")
+def delete_all_notes(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    notes = session.exec(
+        select(Note).where(Note.owner_id == user.id)
+    ).all()
+
+    if not notes:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"message": "No notes found for this user"}
+        )
+
+    for note in notes:
+        session.delete(note)
+    session.commit()
+
+    return JSONResponse(
+        status_code=status.HTTP_204_NO_CONTENT,
+        content={"message": "All notes deleted successfully"}
+    )
+
+
 @app.put("/notes/{note_id}", response_model=Note)
 def update_note(
     note_id: int,
