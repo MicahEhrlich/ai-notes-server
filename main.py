@@ -129,7 +129,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(),  se
 # --- Notes Endpoints ---
 @app.post("/notes", response_model=Note)
 def create_note(note: NoteCreate, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    serialized_tags = json.dumps(note.tags) if note.tags else "[]"
+    serialized_tags = json.dumps(note.tags) if note.tags else []
     new_note = Note(content=note.content, tags=serialized_tags, owner_id=user.id)
     session.add(new_note)
     session.commit()
