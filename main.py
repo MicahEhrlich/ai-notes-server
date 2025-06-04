@@ -2,6 +2,7 @@ import json
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from sqlmodel import SQLModel, Session, select
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
@@ -135,7 +136,7 @@ def create_note(note: NoteCreate, user: User = Depends(get_current_user), sessio
     session.refresh(new_note)
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
-        content=new_note
+        content=jsonable_encoder(new_note)
     )
 
 
