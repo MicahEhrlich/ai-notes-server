@@ -1,4 +1,5 @@
 import json
+import logging
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -29,6 +30,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 
 origins = [
     "http://localhost:5173",
@@ -46,10 +48,13 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
-    SQLModel.metadata.create_all(engine)
-
-
+    try:
+        SQLModel.metadata.create_all(engine)
+    except Exception as e:
+        logger.exception("Failed to create database tables during startup.")
+        logger.error(e)
 # --- Utility Functions ---
+
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
